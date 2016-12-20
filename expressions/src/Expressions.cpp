@@ -32,45 +32,211 @@ void Expressions::init()
 
 void Expressions::setExpre(char* expre)
 {
+	mExpreLength = 0;
 	for (int i = 0; i < EXPRE_LENGTH; i++)
 	{
 		mExpre[i] = expre[i];
+		mExpreLength++;
+		if (expre[i] == '#') break;
 	}
 }
 
-char* Expressions::exeCalculate()
+int Expressions::exeCalculate(int& result)
 {
-	char result[EXPRE_LENGTH] = { 0 };
+	if (!legalCheck(mExpre))
+	{
+		result = 0;
+		return CODE_EXPRE_NOLEGAL;
+	}
 
+	char c;
+	int a = 0;
+	int b = 0;
+
+	char result[EXPRE_LENGTH] = { 0 };
+	char optrTop;
+	int opndTop = 0;
 	mOpnd.ClearStack();
 	mOptr.ClearStack();
 	mPoint = 0;
+	mOptr.push('#');
+	mOptr.GetTop(optrTop);
+	Buffer buffer = getNext(mPoint);
 
-	return NULL;
+	while (!(optrTop == '#' && buffer.buf[0] == '#'))
+	{
+		if (!isOptr(buffer.buf[0]))
+		{
+			mOpnd.push(char2Int(buffer.buf, buffer.length));
+			buffer = getNext(mPoint);
+		}
+		else
+		{
+			switch (precede(optrTop, buffer.buf[0]))
+			{
+			case '<':
+				mOptr.push(buffer.buf[0]);
+				buffer = getNext(mPoint);
+				break;
+			case '>':
+				mOpnd.pop(a);
+				mOpnd.pop(b);
+				mOptr.pop(c);
+				mOpnd.push(operate(b, c, a));
+				break;
+			case '=':
+				mOptr.pop(c);
+				buffer = getNext(mPoint);
+				break;
+			default:
+				break;
+			}
+		}
+		mOptr.GetTop(optrTop);
+	}
+
+	mOpnd.GetTop(opndTop);
+	result = opndTop;
+	return CODE_SUCCESS;
 }
 
-bool Expressions::legalCheck()
+char Expressions::precede(char c1, char c2)
 {
+	if (c1 == '+' || c1 == '-')
+	{
+		if (c2 == '+' || c2 == '-' || c2 == ')' || c2 == '#')
+		{
+			return '>';
+		}
+		else
+		{
+			return '<';
+		}
+	}
+	else if (c1 == '*' || c1 == '/')
+	{
+		if (c2 == '+' || c2 == '-' || c2 == '*' || c2 == '/' || c2 == ')' || c2 == '#')
+		{
+			return '>';
+		}
+		else
+		{
+			return '<';
+		}
+	}
+	else if (c1 == '(')
+	{
+		if (c2 == '+' || c2 == '-' || c2 == '*' || c2 == '/' || c2 == '(')
+		{
+			return '<';
+		}
+		else if (c2 == ')')
+		{
+			return '=';
+		}
+		else
+		{
+			return 'E';
+		}
+	}
+	else if (c1 == ')')
+	{
+		if (c2 == '+' || c2 == '-' || c2 == '*' || c2 == '/' || c2 == ')' || c2 == '#')
+		{
+			return '>';
+		}
+		else
+		{
+			return 'E';
+		}
+	}
+	else if (c1 == '#')
+	{
+		if (c2 == '+' || c2 == '-' || c2 == '*' || c2 == '/' || c2 == '(')
+		{
+			return '<';
+		}
+		else if (c2 == '#')
+		{
+			return '=';
+		}
+		else
+		{
+			return 'E';
+		}
+	}
+	else
+	{
+		return 'E';
+	}
+}
+
+int Expressions::operate(int a, char c, int b)
+{
+	int result = 0;
+	switch (c)
+	{
+	case '+':
+		result = a + b;
+		break;
+	case '-':
+		result = a - b;
+		break;
+	case '*':
+		result = a * b;
+		break;
+	case '/':
+		result = a / b;
+		break;
+	default:
+		break;
+	}
+	return result;
+}
+
+bool Expressions::legalCheck(char* expre)
+{
+	int point = 0;
+	Buffer buf = getNext(point);
+	while (buf.buf[0] != '#')
+	{
+		if (buf.length == 1)
+		{
+			if (buf.buf[0] != '+' &&
+				buf.buf[0] != '-' &&
+				buf.buf[0] != '*' &&
+				buf.buf[0] != '/' &&
+				buf.buf[0] != '(' &&
+				buf.buf[0] != ')')
+			{
+				return false;
+			}
+		}
+		buf = getNext(point);
+	}
 	return true;
 }
 
-Expressions::Buffer Expressions::getNext()
+Expressions::Buffer Expressions::getNext(int& point)
 {
 	Buffer buf;
+	buf.buf[0] = '#';
+	buf.length = 1;
 	int count = 0;
 		
-	for (; mExpre[mPoint] = '#'; count++, mPoint++)
+	for (; mExpre[point] != '#'; count++, point++)
 	{
-		if (isOptr(mExpre[mPoint]) && 0 == count)
+		if (isOptr(mExpre[point]) && 0 == count)
 		{
-			buf.buf[count] = mExpre[mPoint];
+			buf.buf[count] = mExpre[point];
 			buf.length = 1;
+			point++;
 			break;
 		}
 		else
 		{
-			if (isOptr(mExpre[mPoint])) break;
-			buf.buf[count] = mExpre[mPoint];
+			if (isOptr(mExpre[point])) break;
+			buf.buf[count] = mExpre[point];
 			buf.length = count+1;
 		}
 	}
@@ -95,14 +261,14 @@ bool Expressions::isOptr(char c)
 
 int Expressions::char2Int(char* c, int length)
 {
-	int sum = 0;
+	int result = 0;
 	int n = 1;
 	for (int i = length-1; i >= 0; i--)
 	{
-		sum += (c[i] - '0')*n;
+		result += (c[i] - '0')*n;
 		n *= 10;
 	}
-	return sum;
+	return result;
 }
 
 void Expressions::destory()

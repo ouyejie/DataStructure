@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <windows.h>
+#include "Expressions.h"
 
 int char2Int(char* c, int length)
 {
@@ -16,13 +16,14 @@ int char2Int(char* c, int length)
 
 int main(int argc, char* argv[])
 {
-	char temp[10] = { 0 };
-	temp[0] = '1';
-	temp[1] = '2';
-	temp[2] = '3';
-	temp[3] = '4';
-	printf("%d\n", char2Int(temp, 4));
-
+	char input[100] = { 0 };
+	scanf("%s", input);
+	Expressions* expressions = Expressions::getInstance();
+	expressions->setExpre(input);
+	int result;
+	expressions->exeCalculate(result);
+	printf("%d\n", result);
+	expressions->destory();
 	system("pause");
 	return 0;
 }
